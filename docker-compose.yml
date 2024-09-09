@@ -1,0 +1,90 @@
+version: "3.4"
+
+services:
+  pokedex-frontend:
+    container_name: pokedex-frontend
+    build:
+      context: ./pokedex-frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./pokedex-frontend:/pokedex-frontend
+      - ./pokedex-frontend/node_modules:/pokedex-frontend/node_modules
+    environment:
+      - VIRTUAL_HOST=pokedex.keplera.local
+      - VIRTUAL_PORT=80
+    networks:
+      pokedexnetwork:
+        ipv4_address: 4.10.203.81
+  php:
+    build:
+      context: ./pokedex-api
+      dockerfile: Dockerfile
+      #target: app_php
+      args:
+        SYMFONY_VERSION: ${SYMFONY_VERSION:-}
+        STABILITY: ${STABILITY:-stable}
+
+    restart: unless-stopped
+    ports:
+    - "8085:80"
+    volumes:
+      - ./pokedex-api:/app
+    healthcheck:
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 30s
+    networks:
+      pokedexnetwork:
+        ipv4_address: 4.10.203.11
+  mysql:
+    container_name: pokedex_mysql
+    image: mysql
+    command: --default-authentication-plugin=mysql_native_password --sql_mode=""
+    restart: always
+    volumes:
+      - pokedex_mysql:/var/lib/mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: dev
+    expose:
+      - "3306"
+    networks:
+      pokedexnetwork:
+        ipv4_address: 4.10.203.8
+  phpmyadmin_local:
+    image: phpmyadmin/phpmyadmin
+    links:
+      - mysql
+    expose:
+      - "80"
+    ports:
+      - "8081:80"
+    environment:
+      - PMA_HOSTS=pokedex_mysql
+      - VIRTUAL_HOST=phpmyadmin.pokedex.local
+      - VIRTUAL_PORT=80
+      - UPLOAD_LIMIT=300M
+    volumes:
+      - pokedex_phpmyadmin_local:/sessions
+    networks:
+      pokedexnetwork:
+        ipv4_address: 4.10.203.2
+networks:
+  pokedexnetwork:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 4.10.203.0/24
+volumes:
+  pokedex-frontend:
+  pokedex-api:
+  pokedex_phpmyadmin_local:
+  pokedex_mysql:
+
+  #caddy_data:
+  #caddy_config:
+###> symfony/mercure-bundle ###
+###< symfony/mercure-bundle ###
